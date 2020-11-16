@@ -17,4 +17,6 @@ pub fn name(s: &str) -> Result<(), std::ffi::NulError> {
         // The display needs to be closed in order for it to update
         xlib::XCloseDisplay(display);
     }
+
+    Ok(())
 }
