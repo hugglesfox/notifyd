@@ -10,4 +10,4 @@ edition = "2018"
 zbus = "1.3.0"
 zvariant = "2.3.0"
 chrono = "0.4.19"
-
+x11 = { version = "2.18.2", features = ["xlib"] }
