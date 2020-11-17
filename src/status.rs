@@ -22,10 +22,10 @@ fn battery(upower: &UpowerdProxy) -> Result<NaiveTime, Box<dyn std::error::Error
     // Time to empty is 0 whilst charging and vice versa so we can get either the
     // time to full or time to empty, in seconds, by adding them together
     let time = upower.time_to_empty()? + upower.time_to_full()?;
-    Ok(NaiveTime::from_hms(0, 0, time as u32))
+    Ok(NaiveTime::from_num_seconds_from_midnight(time as u32, 0))
 }
 
-/// Set the status bar to something useful every 5 minutes
+/// Set the status bar to something useful every 10 seconds
 ///
 /// This will clear the current notification
 pub fn display() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
@@ -37,6 +37,6 @@ pub fn display() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let battery = battery(&upower)?.format("%H:%M:%S").to_string();
 
         xsetroot::name(format!("{} | {}", battery, time).as_str());
-        thread::sleep(Duration::from_secs(300));
+        thread::sleep(Duration::from_secs(10));
     }
 }
