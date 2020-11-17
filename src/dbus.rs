@@ -7,7 +7,7 @@ use zvariant::Value;
 ///
 /// See https://developer.gnome.org/notification-spec/ for more information.
 pub struct Interface {
-    current_id: u64,
+    current_id: u32,
 }
 
 impl Default for Interface {
@@ -25,14 +25,14 @@ impl Interface {
     fn notify(
         &mut self,
         app_name: &str,
-        _replaced_id: u64,
+        _replaced_id: u32,
         _app_icon: &str,
         summary: &str,
         _body: &str,
         _actions: Vec<&str>,
         _hints: HashMap<&str, Value>,
         _expire_timeout: i32,
-    ) -> u64 {
+    ) -> u32 {
         xsetroot::name(format!("{}: {}", app_name, summary).as_str());
 
         // Just cos it needs an incrementing number
