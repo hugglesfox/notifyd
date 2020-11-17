@@ -1,12 +1,13 @@
+use crate::xsetroot;
 use std::collections::HashMap;
 use zbus::dbus_interface;
 use zvariant::Value;
 
-/// DBus notification interface
+/// The dumbest DBus notification server
 ///
-/// See https://developer.gnome.org/notification-spec/ for more information
+/// See https://developer.gnome.org/notification-spec/ for more information.
 pub struct Interface {
-    current_id: u32,
+    current_id: u64,
 }
 
 impl Default for Interface {
@@ -24,17 +25,22 @@ impl Interface {
     fn notify(
         &mut self,
         app_name: &str,
-        replaced_id: u32,
+        _replaced_id: u64,
         _app_icon: &str,
         summary: &str,
         _body: &str,
         _actions: Vec<&str>,
         _hints: HashMap<&str, Value>,
-        expire_timeout: i32,
-    ) -> u32 {
+        _expire_timeout: i32,
+    ) -> u64 {
+        xsetroot::name(format!("{}: {}", app_name, summary).as_str());
+
+        // Just cos it needs an incrementing number
+        self.current_id.wrapping_add(1)
     }
 
-    fn close_notification(&self, id: u32) {}
+    fn close_notification(&self, id: u64) {}
+
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
     }
