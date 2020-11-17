@@ -33,7 +33,8 @@ impl Interface {
         _hints: HashMap<&str, Value>,
         _expire_timeout: i32,
     ) -> u32 {
-        xsetroot::name(format!("{}: {}", app_name, summary).as_str());
+        // Should never fail
+        xsetroot::name(format!("{}: {}", app_name, summary).as_str()).unwrap();
 
         // Just cos it needs an incrementing number
         self.current_id.wrapping_add(1)

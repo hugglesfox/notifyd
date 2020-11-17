@@ -36,7 +36,7 @@ pub fn display() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let battery = battery(&upower)?.format("%H:%M:%S").to_string();
 
-        xsetroot::name(format!("{} | {}", battery, time).as_str());
+        xsetroot::name(format!("{} | {}", battery, time).as_str())?;
         thread::sleep(Duration::from_secs(10));
     }
 }
