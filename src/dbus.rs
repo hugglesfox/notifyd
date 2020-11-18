@@ -40,7 +40,7 @@ impl Interface {
         self.current_id.wrapping_add(1)
     }
 
-    fn close_notification(&self, id: u64) {}
+    fn close_notification(&self, _id: u64) {}
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
