@@ -11,6 +11,7 @@ use log::info;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 use zbus::fdo;
 
 mod dbus;
@@ -35,32 +36,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     server.at(&"/org/freedesktop/Notifications".try_into()?, iface)?;
 
     // Close expired notifications
-    thread::spawn(move || loop {
+    thread::spawn(move || {
         let connection = zbus::Connection::new_session().expect("Failed to connect to dbus");
-        let mut notifications = notification_queue
-            .lock()
-            .expect("Unable to lock notification queue");
+        loop {
+            {
+                let mut notifications = notification_queue
+                    .lock()
+                    .expect("Unable to lock notification queue");
 
-        let expired: Vec<u32> = notifications
-            .iter()
-            .filter(|n| n.expired())
-            .map(|n| n.id)
-            .collect();
+                let expired: Vec<u32> = notifications
+                    .iter()
+                    .filter(|n| n.expired())
+                    .map(|n| n.id)
+                    .collect();
 
-        for id in expired {
-            use notification::Notifications as _;
-            info!("Removing expired notification {}", id);
-            notifications.remove_notification(id);
+                for id in expired {
+                    use notification::Notifications as _;
+                    info!("Removing expired notification {}", id);
+                    notifications.remove_notification(id);
 
-            connection
-                .emit_signal(
-                    None,
-                    "/org/freedesktop/Notifications",
-                    "org.freedesktop.Notifications",
-                    "NotificationClosed",
-                    &(id, 1),
-                )
-                .expect("Unable to send signal");
+                    connection
+                        .emit_signal(
+                            None,
+                            "/org/freedesktop/Notifications",
+                            "org.freedesktop.Notifications",
+                            "NotificationClosed",
+                            &(id, 1),
+                        )
+                        .expect("Unable to send signal");
+                }
+            }
+            thread::sleep(Duration::from_secs(5));
         }
     });
 
