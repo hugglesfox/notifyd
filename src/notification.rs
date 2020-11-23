@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use chrono::Duration;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use zvariant::derive::Type;
 
@@ -74,20 +75,17 @@ pub trait Notifications {
     /// Get a notification with a certain id
     fn get_notification(&self, id: u32) -> Option<&Notification>;
 
-    /// Replace a notification with a certain id
-    ///
-    /// Returns the replaced notification
-    fn replace_notification(&mut self, id: u32, replacement: Notification) -> Option<Notification>;
-
     /// Remove a notification with a certain id
     ///
-    /// Returns the removed notification
+    /// If the notification being replaced doesn't exist, the new notification
+    /// will just be added with the given id.
     fn remove_notification(&mut self, id: u32) -> Option<Notification>;
 
     /// Add a notification
     ///
-    /// Errors if a notification with the same id already exists
-    fn push_notification(&mut self, notification: Notification) -> Result<(), String>;
+    /// If a notification with the given id already exists, the new notification
+    /// will replace it.
+    fn push_notification(&mut self, notification: Notification);
 }
 
 impl Notifications for Vec<Notification> {
@@ -107,31 +105,16 @@ impl Notifications for Vec<Notification> {
         self.iter().filter(|n| n.id == id).next()
     }
 
-    fn replace_notification(
-        &mut self,
-        id: u32,
-        mut replacement: Notification,
-    ) -> Option<Notification> {
-        self.index_notification_by_id(id).and_then(|i| {
-            let last = self.len() - 1;
-            replacement.id = id;
-
-            self.push(replacement);
-            self.swap(i, last);
-            self.pop()
-        })
-    }
-
     fn remove_notification(&mut self, id: u32) -> Option<Notification> {
         self.index_notification_by_id(id)
             .and_then(|i| Some(self.remove(i)))
     }
 
-    fn push_notification(&mut self, notification: Notification) -> Result<(), String> {
-        if let Some(n) = self.get_notification(notification.id) {
-            return Err(format!("Notification with id {} already exists", n.id));
+    fn push_notification(&mut self, notification: Notification) {
+        if let Some(n) = self.remove_notification(notification.id) {
+            debug!("Notification with id {} already exists, replacing", n.id);
         }
 
-        Ok(self.push(notification))
+        self.push(notification);
     }
 }
