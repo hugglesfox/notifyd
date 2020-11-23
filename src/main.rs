@@ -7,7 +7,7 @@
 
 extern crate pretty_env_logger;
 
-use log::info;
+use log::{debug, error, info};
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -20,7 +20,8 @@ mod notification;
 use notification::Notification;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    pretty_env_logger::init_custom_env("NOTIFYD_LOG");
+    info!("Starting notifyd...");
 
     let notification_queue: Arc<Mutex<Vec<Notification>>> = Arc::default();
 
@@ -52,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 for id in expired {
                     use notification::Notifications as _;
-                    info!("Removing expired notification {}", id);
+                    debug!("Removing expired notification {}", id);
                     notifications.remove_notification(id);
 
                     connection
@@ -72,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         if let Err(err) = server.try_handle_next() {
-            eprintln!("{}", err);
+            error!("{}", err);
         }
     }
 }
