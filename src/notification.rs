@@ -35,7 +35,7 @@ impl Notification {
             summary: summary.into(),
             body: body.into(),
             expire_timeout: expire_timeout
-                .map(|v| Utc::now().naive_utc() + Duration::seconds(v as i64)),
+                .map(|v| Utc::now().naive_utc() + Duration::milliseconds(v as i64)),
         }
     }
 
