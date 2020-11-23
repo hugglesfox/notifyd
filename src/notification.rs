@@ -8,6 +8,7 @@ use zvariant::derive::Type;
 pub struct DbusNotification {
     pub id: u32,
     pub app_name: String,
+    pub summary: String,
     pub body: String,
 }
 
@@ -56,6 +57,7 @@ impl Notification {
         DbusNotification {
             id: self.id,
             app_name: self.app_name.to_string(),
+            summary: self.summary.to_string(),
             body: self.body.to_string(),
         }
     }
