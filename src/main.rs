@@ -1,24 +1,27 @@
 //! # Notifyd
 //!
-//! Notifyd is a lightweight notification daemon designed for window managers
-//! which use xsetroot(1) in order to customise the status bar (such as dwm).
+//! Notifyd is a lightweight notification daemon designed to provide a simple
+//! notification management interface for other programs to interact with.
 //!
-//! Notifyd only implements just enough of the freedesktop notifications
-//! protocol to just barely work so therefore has no support for things such as
-//! expiry timeouts, icons, queues, etc. All it does is display the latest
-//! notification and every 10 seconds show a clock and battery time to
-//! empty/full.
+//! *Note:* Notification expires are checked when a new dbus messages are received.
 
+extern crate pretty_env_logger;
+
+use log::info;
 use std::convert::TryInto;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use zbus::fdo;
 
 mod dbus;
-mod status;
-mod xsetroot;
+mod notification;
+
+use notification::Notification;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    thread::spawn(|| status::display());
+    pretty_env_logger::init();
+
+    let notification_queue: Arc<Mutex<Vec<Notification>>> = Arc::default();
 
     let connection = zbus::Connection::new_session()?;
     fdo::DBusProxy::new(&connection)?.request_name(
@@ -28,8 +31,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut server = zbus::ObjectServer::new(&connection);
 
-    let iface = dbus::Interface::default();
+    let iface = dbus::Interface::new(Arc::clone(&notification_queue));
     server.at(&"/org/freedesktop/Notifications".try_into()?, iface)?;
+
+    // Close expired notifications
+    thread::spawn(move || loop {
+        let connection = zbus::Connection::new_session().expect("Failed to connect to dbus");
+        let mut notifications = notification_queue
+            .lock()
+            .expect("Unable to lock notification queue");
+
+        let expired: Vec<u32> = notifications
+            .iter()
+            .filter(|n| n.expired())
+            .map(|n| n.id)
+            .collect();
+
+        for id in expired {
+            use notification::Notifications as _;
+            info!("Removing expired notification {}", id);
+            notifications.remove_notification(id);
+
+            connection
+                .emit_signal(
+                    None,
+                    "/org/freedesktop/Notifications",
+                    "org.freedesktop.Notifications",
+                    "NotificationClosed",
+                    &(id, 1),
+                )
+                .expect("Unable to send signal");
+        }
+    });
 
     loop {
         if let Err(err) = server.try_handle_next() {
