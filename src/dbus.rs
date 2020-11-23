@@ -50,8 +50,8 @@ impl Interface {
         // parsed as expiring 10 milliseconds in the past therefore will
         // instantly expire after being created
         let expire_timeout = match expire_timeout {
-            // Default timeout of 5 seconds
-            -1 => Some(5000),
+            // Default timeout is 60 seconds
+            -1 => Some(60000),
             0 => None,
             v => Some(v),
         };
