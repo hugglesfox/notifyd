@@ -36,10 +36,13 @@ impl Interface {
         hints: HashMap<&str, Value>,
         expire_timeout: i32,
     ) -> u32 {
+        warn!("Notification");
         let mut notifications = self
             .notifications
             .lock()
             .expect("Unable to get lock on notification queue");
+
+        warn!("{:?}", notifications);
 
         let id = match replaced_id {
             0 => notifications.last().map(|v| v.id + 1).unwrap_or(1),
@@ -49,16 +52,8 @@ impl Interface {
         let notification = Notification::new(id, app_name, summary, body, expire_timeout);
 
         use crate::notification::Notifications as _;
-        match replaced_id {
-            0 => {
-                notifications.push_notification(notification).ok();
-                id
-            }
-            n => {
-                notifications.replace_notification(n, notification);
-                replaced_id
-            }
-        }
+        notifications.push_notification(notification);
+        id
     }
 
     fn close_notification(&mut self, id: u32) {

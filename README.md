@@ -3,7 +3,7 @@
 Notifyd is a lightweight notification daemon.
 
 Notifyd doesn't display any notifications but rather provides [additional dbus
-functions](#DBus API) to allow the creation of clients.
+functions](#dbus-api) to allow the creation of clients.
 
 ## DBus API
 
