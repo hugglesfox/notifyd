@@ -52,9 +52,9 @@ impl Interface {
         };
 
         let urgency = match hints.get("urgency") {
-            Some(Value::U32(2)) => Urgency::Critical,
-            Some(Value::U32(1)) => Urgency::Normal,
-            Some(Value::U32(0)) => Urgency::Low,
+            Some(Value::I32(2)) => Urgency::Critical,
+            Some(Value::I32(1)) => Urgency::Normal,
+            Some(Value::I32(0)) => Urgency::Low,
             // Err
             _ => {
                 warn!("Unknown urgency. Defaulting to low");
