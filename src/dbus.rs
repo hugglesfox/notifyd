@@ -1,5 +1,5 @@
 use crate::notification::{DbusNotification, Notification, Urgency};
-use log::debug;
+use log::{debug, warn};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
@@ -38,7 +38,6 @@ impl Interface {
         hints: HashMap<&str, Value>,
         expire_timeout: i32,
     ) -> u32 {
-        warn!("Notification");
         let mut notifications = self
             .notifications
             .lock()
