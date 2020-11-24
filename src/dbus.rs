@@ -1,5 +1,5 @@
 use crate::notification::{DbusNotification, Notification, Urgency};
-use log::warn;
+use log::debug;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
@@ -44,8 +44,6 @@ impl Interface {
             .lock()
             .expect("Unable to get lock on notification queue");
 
-        warn!("{:?}", notifications);
-
         let id = match replaced_id {
             0 => notifications.last().map(|v| v.id + 1).unwrap_or(1),
             n => n,
@@ -57,7 +55,7 @@ impl Interface {
             Some(Value::I32(0)) => Urgency::Low,
             // Err
             _ => {
-                warn!("Unknown urgency. Defaulting to low");
+                debug!("Unknown urgency. Defaulting to low");
                 Urgency::Low
             }
         };
@@ -66,6 +64,9 @@ impl Interface {
 
         use crate::notification::Notifications as _;
         notifications.push_notification(notification);
+
+        debug!("{:?}", notifications);
+
         id
     }
 
