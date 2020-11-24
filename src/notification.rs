@@ -4,7 +4,7 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 use zvariant::derive::Type;
 
-#[derive(PartialEq, Debug, Type, Deserialize, Serialize)]
+#[derive(PartialEq, Debug, Type, Deserialize, Serialize, Clone)]
 pub enum Urgency {
     Low,
     Normal,
@@ -13,11 +13,11 @@ pub enum Urgency {
 
 /// A DBus safe notification
 #[derive(PartialEq, Debug, Type, Deserialize, Serialize)]
-pub struct DbusNotification<'a> {
+pub struct DbusNotification {
     id: u32,
-    app_name: &'a str,
-    summary: &'a str,
-    body: &'a str,
+    app_name: String,
+    summary: String,
+    body: String,
     urgency: Urgency,
 }
 
@@ -82,10 +82,10 @@ impl Notification {
     pub fn to_dbus(&self) -> DbusNotification {
         DbusNotification {
             id: self.id,
-            app_name: self.app_name,
-            summary: self.summary,
-            body: self.body,
-            hints: self.hints,
+            app_name: self.app_name.to_owned(),
+            summary: self.summary.to_owned(),
+            body: self.body.to_owned(),
+            urgency: self.urgency.clone(),
         }
     }
 }
