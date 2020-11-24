@@ -4,6 +4,7 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 use zvariant::derive::Type;
 
+/// Notification urgency
 #[derive(PartialEq, Debug, Type, Deserialize, Serialize, Clone)]
 pub enum Urgency {
     Low,
@@ -12,6 +13,9 @@ pub enum Urgency {
 }
 
 /// A DBus safe notification
+///
+/// NaiveDateTime cannot be (easily) converted to a dbus safe type and shouldn't
+/// be required by clients, therefore is not included in `DbusNotification`.
 #[derive(PartialEq, Debug, Type, Deserialize, Serialize)]
 pub struct DbusNotification {
     id: u32,
@@ -33,6 +37,10 @@ pub struct Notification {
 }
 
 impl Notification {
+    /// Create a new notification
+    ///
+    /// The types taken by this function are designed to somewhat match the
+    /// types used by the notify dbus function.
     pub fn new(
         id: u32,
         app_name: &str,
@@ -41,11 +49,7 @@ impl Notification {
         urgency: Urgency,
         expire_timeout: i32,
     ) -> Self {
-        // If the expiry timeout is an invalid value (e.g. -10) then it'll be
-        // parsed as expiring 10 milliseconds in the past therefore will
-        // instantly expire after being created
         let expire_timeout = match expire_timeout {
-            // Default timeout is 60 seconds
             -1 => match urgency {
                 Urgency::Critical => None,
                 Urgency::Normal => Some(120000),
@@ -78,7 +82,7 @@ impl Notification {
         false
     }
 
-    /// Convert to a Dbus safe notificatoin
+    /// Convert to a Dbus safe notification
     pub fn to_dbus(&self) -> DbusNotification {
         DbusNotification {
             id: self.id,

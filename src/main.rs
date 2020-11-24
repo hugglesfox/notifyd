@@ -2,8 +2,6 @@
 //!
 //! Notifyd is a lightweight notification daemon designed to provide a simple
 //! notification management interface for other programs to interact with.
-//!
-//! *Note:* Notification expires are checked when a new dbus messages are received.
 
 extern crate pretty_env_logger;
 

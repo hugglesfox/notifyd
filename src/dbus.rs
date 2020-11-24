@@ -21,10 +21,12 @@ impl Interface {
 
 #[dbus_interface(name = "org.freedesktop.Notifications")]
 impl Interface {
+    /// Get the capabilities of the notification daemon
     fn get_capabilites(&self) -> &[&str] {
         &["body", "persistence"]
     }
 
+    /// Create a new notification
     fn notify(
         &mut self,
         app_name: &str,
@@ -67,6 +69,7 @@ impl Interface {
         id
     }
 
+    /// Delete a notification
     fn close_notification(&mut self, id: u32) {
         let mut notifications = self
             .notifications
@@ -81,10 +84,12 @@ impl Interface {
         self.notification_closed(id, 3).unwrap();
     }
 
+    /// Get information about the notification server
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
     }
 
+    /// Get the amount of notifications
     fn get_notification_count(&self) -> u32 {
         self.notifications
             .lock()
@@ -94,6 +99,7 @@ impl Interface {
             .expect("Unable to get notification count")
     }
 
+    /// Get all the notifications
     fn get_notification_queue(&self) -> Vec<DbusNotification> {
         self.notifications
             .lock()
