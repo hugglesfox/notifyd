@@ -14,7 +14,7 @@ some custom functions to for use by notification clients.
 | Interface                                            | Description                                                                         | Signature       |
 |------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------|
 | `org.freedesktop.Notifications.GetNotificationCount` | Returns the amount of notifications in the queue                                    | -> u            |
-| `org.freedesktop.Notifications.GetNotificationQueue` | Returns an array of the current notifications id, app name, summary, body and hints | -> a(usssa{sv}) |
+| `org.freedesktop.Notifications.GetNotificationQueue` | Returns an array of the current notifications id, app name, summary, body and hints | -> a(usssa)     |
 
 **Note:** Types specified after the `->` denote the return type of the function.
 
