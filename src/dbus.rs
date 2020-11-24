@@ -33,7 +33,7 @@ impl Interface {
         summary: &str,
         body: &str,
         _actions: Vec<&str>,
-        _hints: HashMap<&str, Value>,
+        hints: HashMap<&str, Value>,
         expire_timeout: i32,
     ) -> u32 {
         let mut notifications = self
@@ -44,16 +44,6 @@ impl Interface {
         let id = match replaced_id {
             0 => notifications.last().map(|v| v.id + 1).unwrap_or(1),
             n => n,
-        };
-
-        // If the expiry timeout is an invalid value (e.g. -10) then it'll be
-        // parsed as expiring 10 milliseconds in the past therefore will
-        // instantly expire after being created
-        let expire_timeout = match expire_timeout {
-            // Default timeout is 60 seconds
-            -1 => Some(60000),
-            0 => None,
-            v => Some(v),
         };
 
         let notification = Notification::new(id, app_name, summary, body, expire_timeout);
