@@ -1,6 +1,6 @@
 [package]
 name = "notifyd"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Hayley Hughes <hayley@foxes.systems>"]
 edition = "2018"
 
