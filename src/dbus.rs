@@ -1,4 +1,4 @@
-use crate::notification::{DbusNotification, Notification};
+use crate::notification::{DbusNotification, Notification, Urgency};
 use log::warn;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -49,7 +49,18 @@ impl Interface {
             n => n,
         };
 
-        let notification = Notification::new(id, app_name, summary, body, expire_timeout);
+        let urgency = match hints.get("urgency") {
+            Some(Value::U32(2)) => Urgency::Critical,
+            Some(Value::U32(1)) => Urgency::Normal,
+            Some(Value::U32(0)) => Urgency::Low,
+            // Err
+            _ => {
+                warn!("Unknown urgency. Defaulting to low");
+                Urgency::Low
+            }
+        };
+
+        let notification = Notification::new(id, app_name, summary, body, urgency, expire_timeout);
 
         use crate::notification::Notifications as _;
         notifications.push_notification(notification);

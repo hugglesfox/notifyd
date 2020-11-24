@@ -2,38 +2,43 @@ use chrono::prelude::*;
 use chrono::Duration;
 use log::debug;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use zvariant::derive::Type;
-use zvariant::Value;
+
+#[derive(PartialEq, Debug, Type, Deserialize, Serialize)]
+pub enum Urgency {
+    Low,
+    Normal,
+    Critical,
+}
 
 /// A DBus safe notification
 #[derive(PartialEq, Debug, Type, Deserialize, Serialize)]
 pub struct DbusNotification<'a> {
-    pub id: u32,
-    pub app_name: &'a str,
-    pub summary: &'a str,
-    pub body: &'a str,
-    pub hints: HashMap<&'a str, Value<'a>>,
+    id: u32,
+    app_name: &'a str,
+    summary: &'a str,
+    body: &'a str,
+    urgency: Urgency,
 }
 
 /// A notification
 #[derive(PartialEq, Debug)]
-pub struct Notification<'a> {
+pub struct Notification {
     pub id: u32,
-    pub app_name: &'a str,
-    pub summary: &'a str,
-    pub body: &'a str,
-    pub hints: HashMap<&'a str, Value<'a>>,
+    app_name: String,
+    summary: String,
+    body: String,
+    urgency: Urgency,
     expire_timeout: Option<NaiveDateTime>,
 }
 
-impl<'a> Notification<'a> {
+impl Notification {
     pub fn new(
         id: u32,
-        app_name: &'a str,
-        summary: &'a str,
-        body: &'a str,
-        hints: HashMap<&'a str, Value<'a>>,
+        app_name: &str,
+        summary: &str,
+        body: &str,
+        urgency: Urgency,
         expire_timeout: i32,
     ) -> Self {
         // If the expiry timeout is an invalid value (e.g. -10) then it'll be
@@ -41,31 +46,21 @@ impl<'a> Notification<'a> {
         // instantly expire after being created
         let expire_timeout = match expire_timeout {
             // Default timeout is 60 seconds
-            -1 => {
-                match hints.get("urgency") {
-                    // Critical urgency
-                    Some(Value::U32(2)) => None,
-                    // Normal urgency
-                    Some(Value::U32(1)) => Some(120000),
-                    // Low urgency
-                    Some(Value::U32(0)) => Some(60000),
-                    // Err
-                    _ => {
-                        debug!("Unknown urgency. defaulting to timeout of 60000 milliseconds");
-                        Some(60000)
-                    }
-                }
-            }
+            -1 => match urgency {
+                Urgency::Critical => None,
+                Urgency::Normal => Some(120000),
+                Urgency::Low => Some(60000),
+            },
             0 => None,
             v => Some(v),
         };
 
         Self {
             id,
-            app_name,
-            summary,
-            body,
-            hints,
+            app_name: app_name.into(),
+            summary: summary.into(),
+            body: body.into(),
+            urgency,
             expire_timeout: expire_timeout
                 .map(|v| Utc::now().naive_utc() + Duration::milliseconds(v as i64)),
         }
@@ -119,7 +114,7 @@ pub trait Notifications {
     fn push_notification(&mut self, notification: Notification);
 }
 
-impl Notifications for Vec<Notification<'_>> {
+impl Notifications for Vec<Notification> {
     fn index_notification_by_id(&self, id: u32) -> Option<usize> {
         self.iter().rposition(|n| n.id == id)
     }
