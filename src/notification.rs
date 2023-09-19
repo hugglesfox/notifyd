@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use log::debug;
 use serde::{Deserialize, Serialize};
-use zvariant::derive::Type;
+use zbus::zvariant::Type;
 
 /// Notification urgency
 #[derive(PartialEq, Debug, Type, Deserialize, Serialize, Clone)]

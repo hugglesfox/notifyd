@@ -1,10 +1,17 @@
-use crate::notification::{DbusNotification, Notification, Urgency};
+use crate::notification::DbusNotification;
+use crate::notification::Notification;
+use crate::notification::Urgency;
 use log::{debug, warn};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use zbus::dbus_interface;
-use zvariant::Value;
+use zbus::zvariant::Value;
+use zbus::Result;
+use zbus::SignalContext;
+
+pub const BUS_NAME: &str = "org.freedesktop.Notifications";
+pub const OBJ_PATH: &str = "/org/freedesktop/Notifications";
 
 /// DBus notification interface
 ///
@@ -22,12 +29,12 @@ impl Interface {
 #[dbus_interface(name = "org.freedesktop.Notifications")]
 impl Interface {
     /// Get the capabilities of the notification daemon
-    fn get_capabilites(&self) -> &[&str] {
+    async fn get_capabilities(&self) -> &[&str] {
         &["body", "persistence"]
     }
 
     /// Create a new notification
-    fn notify(
+    async fn notify(
         &mut self,
         app_name: &str,
         replaced_id: u32,
@@ -35,7 +42,7 @@ impl Interface {
         summary: &str,
         body: &str,
         _actions: Vec<&str>,
-        hints: HashMap<&str, Value>,
+        hints: HashMap<&str, Value<'_>>,
         expire_timeout: i32,
     ) -> u32 {
         let mut notifications = self
@@ -70,7 +77,11 @@ impl Interface {
     }
 
     /// Delete a notification
-    fn close_notification(&mut self, id: u32) {
+    async fn close_notification(
+        &mut self,
+        #[zbus(signal_context)] ctxt: SignalContext<'_>,
+        id: u32,
+    ) {
         let mut notifications = self
             .notifications
             .lock()
@@ -81,16 +92,16 @@ impl Interface {
             warn!("Tried to close unknown notification with id {}", id)
         };
 
-        self.notification_closed(id, 3).unwrap();
+        Self::notification_closed(&ctxt, id);
     }
 
     /// Get information about the notification server
-    fn get_server_information(&self) -> (&str, &str, &str, &str) {
+    async fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
     }
 
     /// Get the amount of notifications
-    fn get_notification_count(&self) -> u32 {
+    async fn get_notification_count(&self) -> u32 {
         self.notifications
             .lock()
             .expect("Unable to get lock on notification queue")
@@ -100,7 +111,7 @@ impl Interface {
     }
 
     /// Get all the notifications
-    fn get_notification_queue(&self) -> Vec<DbusNotification> {
+    async fn get_notification_queue(&self) -> Vec<DbusNotification> {
         self.notifications
             .lock()
             .expect("Unable to get lock on notification queue")
@@ -110,5 +121,5 @@ impl Interface {
     }
 
     #[dbus_interface(signal)]
-    fn notification_closed(&self, id: u32, reason: u32) -> zbus::Result<()>;
+    async fn notification_closed(ctx: &SignalContext<'_>, id: u32) -> Result<()> {}
 }

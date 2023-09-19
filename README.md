@@ -2,12 +2,15 @@
 
 Notifyd is an in memory freedesktop notification datastore.
 
-Notifyd doesn't display any notifications but rather provides [a dbus api](#dbus-api) to allow client applications to access and manipulate notifications. Additonally Notifyd will remove notifications when they expire.
+Notifyd doesn't display any notifications but rather provides [a dbus
+api](#dbus-api) to allow client applications to access and manipulate
+notifications. Additonally Notifyd will remove notifications when they expire.
 
 ## DBus API
 
 In addition to the [freedesktop notifications
-api](https://developer.gnome.org/notification-spec/), notifyd also provides the following dbus functions:
+api](https://developer.gnome.org/notification-spec/), notifyd also provides the
+following dbus functions:
 
 | Interface                                            | Description                                                                         | Signature       |
 |------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------|
