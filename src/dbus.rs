@@ -1,79 +1,77 @@
-use crate::notification::DbusNotification;
+use crate::store::NotificationStore;
+use crate::notification::Hints;
 use crate::notification::Notification;
-use crate::notification::Urgency;
-use log::{debug, warn};
+use async_std::sync::Arc;
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
-use zbus::dbus_interface;
-use zbus::zvariant::Value;
-use zbus::Result;
+use log::{debug, warn};
 use zbus::SignalContext;
+use zbus::dbus_interface;
 
 pub const BUS_NAME: &str = "org.freedesktop.Notifications";
 pub const OBJ_PATH: &str = "/org/freedesktop/Notifications";
 
+
 /// DBus notification interface
 ///
-/// See https://developer.gnome.org/notification-spec/ for more information.
+/// See https://specifications.freedesktop.org/notification-spec/notification-spec-latest.html for more information.
 pub struct Interface {
-    notifications: Arc<Mutex<Vec<Notification>>>,
+    id: u32,
+    notifications: Arc<NotificationStore>, 
 }
 
 impl Interface {
-    pub fn new(notifications: Arc<Mutex<Vec<Notification>>>) -> Self {
-        Self { notifications }
+    pub fn new(notifications: Arc<NotificationStore>) -> Self {
+        Self {
+            id: 0,
+            notifications,
+        }
     }
+
 }
 
 #[dbus_interface(name = "org.freedesktop.Notifications")]
 impl Interface {
     /// Get the capabilities of the notification daemon
-    async fn get_capabilities(&self) -> &[&str] {
+    ///
+    /// TODO: Get clients to specify their capabilites with a function. Use a signal to notify
+    /// clients that they should send their capabilites
+    fn get_capabilities(&self) -> &[&str] {
         &["body", "persistence"]
     }
 
     /// Create a new notification
     async fn notify(
         &mut self,
-        app_name: &str,
-        replaced_id: u32,
-        _app_icon: &str,
-        summary: &str,
-        body: &str,
-        _actions: Vec<&str>,
-        hints: HashMap<&str, Value<'_>>,
+        #[zbus(signal_context)] ctxt: SignalContext<'_>,
+        app_name: String,
+        replaces_id: u32,
+        app_icon: String,
+        summary: String,
+        body: String,
+        actions: Vec<String>,
+        hints: Hints,
         expire_timeout: i32,
     ) -> u32 {
-        let mut notifications = self
-            .notifications
-            .lock()
-            .expect("Unable to get lock on notification queue");
+        self.id = self.id.wrapping_add(1);
+        self.notifications.insert(
+            self.id,
+            Notification::new(
+                app_name,
+                replaces_id,
+                app_icon,
+                summary,
+                body,
+                actions,
+                hints,
+                expire_timeout,
+            ),
+        ).await;
 
-        let id = match replaced_id {
-            0 => notifications.last().map(|v| v.id + 1).unwrap_or(1),
-            n => n,
-        };
+        Self::new_notification(&ctxt).await.unwrap();
 
-        let urgency = match hints.get("urgency") {
-            Some(Value::I32(2)) => Urgency::Critical,
-            Some(Value::I32(1)) => Urgency::Normal,
-            Some(Value::I32(0)) => Urgency::Low,
-            // Err
-            _ => {
-                debug!("Unknown urgency. Defaulting to low");
-                Urgency::Low
-            }
-        };
+        debug!("Created notification {:?}", self.id);
 
-        let notification = Notification::new(id, app_name, summary, body, urgency, expire_timeout);
-
-        use crate::notification::Notifications as _;
-        notifications.push_notification(notification);
-
-        debug!("{:?}", notifications);
-
-        id
+        self.id
     }
 
     /// Delete a notification
@@ -82,44 +80,31 @@ impl Interface {
         #[zbus(signal_context)] ctxt: SignalContext<'_>,
         id: u32,
     ) {
-        let mut notifications = self
-            .notifications
-            .lock()
-            .expect("Unable to get lock on notification queue");
-
-        use crate::notification::Notifications as _;
-        if let None = notifications.remove_notification(id) {
-            warn!("Tried to close unknown notification with id {}", id)
+        if let None = self.notifications.remove(id).await {
+            warn!("Tried to close non-existant notification with id {}", id)
         };
 
-        Self::notification_closed(&ctxt, id);
+        Self::notification_closed(&ctxt, id).await.unwrap();
     }
 
     /// Get information about the notification server
-    async fn get_server_information(&self) -> (&str, &str, &str, &str) {
+    fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
     }
 
-    /// Get the amount of notifications
-    async fn get_notification_count(&self) -> u32 {
-        self.notifications
-            .lock()
-            .expect("Unable to get lock on notification queue")
-            .len()
-            .try_into()
-            .expect("Unable to get notification count")
+    /// Get notification with given id
+    async fn get_notification(&self, id: u32) -> Result<Notification, zbus::fdo::Error> {
+        self.notifications.get(id).await.ok_or(zbus::fdo::Error::InvalidArgs("Notification with given ID does not exist".to_string()))
     }
 
-    /// Get all the notifications
-    async fn get_notification_queue(&self) -> Vec<DbusNotification> {
-        self.notifications
-            .lock()
-            .expect("Unable to get lock on notification queue")
-            .iter()
-            .map(|n| n.to_dbus())
-            .collect()
+    /// Get notifications
+    async fn get_notifications(&self) -> HashMap<u32, Notification> {
+        self.notifications.to_map().await
     }
 
     #[dbus_interface(signal)]
-    async fn notification_closed(ctx: &SignalContext<'_>, id: u32) -> Result<()> {}
+    async fn new_notification(ctx: &SignalContext<'_>) -> zbus::Result<()> {}
+
+    #[dbus_interface(signal)]
+    async fn notification_closed(ctx: &SignalContext<'_>, id: u32) -> zbus::Result<()> {}
 }

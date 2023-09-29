@@ -1,39 +1,39 @@
-//! # Notifyd
-//!
-//! Notifyd is a lightweight notification daemon designed to provide a simple
-//! notification management interface for other programs to interact with.
-
 extern crate pretty_env_logger;
 
-use log::{debug, error, info};
-use std::sync::{Arc, Mutex};
+use log::{debug, info};
 use zbus::{ConnectionBuilder, Result};
+use notifyd::NotifydProxy;
 
 mod dbus;
 mod notification;
+mod store;
 
+use store::NotificationStore;
 use dbus::{BUS_NAME, OBJ_PATH};
-use notification::Notification;
 
 #[async_std::main]
 async fn main() -> Result<()> {
     pretty_env_logger::init_custom_env("NOTIFYD_LOG");
     info!("Starting notifyd...");
 
-    let notification_queue: Arc<Mutex<Vec<Notification>>> = Arc::default();
+    let notifications = NotificationStore::new();
+
+    let interface = dbus::Interface::new(notifications.clone());
 
     let connection = ConnectionBuilder::session()?
         .name(BUS_NAME)?
-        .serve_at(
-            OBJ_PATH,
-            dbus::Interface::new(notification_queue),
-        )?
+        .serve_at(OBJ_PATH, interface)?
         .build()
         .await?;
 
     info!("Listening on {} {}", BUS_NAME, OBJ_PATH);
 
+    let client = NotifydProxy::new(&connection).await.unwrap();
+
     loop {
-        std::future::pending::<()>().await;
+        for id in notifications.expired_ids().await {
+            debug!("Closing expired notification {}", id);
+            client.close_notification(id).await.ok();
+        }
     }
 }
