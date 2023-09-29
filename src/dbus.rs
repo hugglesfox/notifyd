@@ -1,15 +1,36 @@
-use crate::store::NotificationStore;
-use crate::notification::Hints;
-use crate::notification::Notification;
 use async_std::sync::Arc;
-use std::collections::HashMap;
+use crate::notification::{Hints, Notification};
+use crate::store::NotificationStore;
 use log::{debug, warn};
-use zbus::SignalContext;
-use zbus::dbus_interface;
+use serde_repr::{Serialize_repr, Deserialize_repr};
+use std::collections::HashMap;
+use zbus::fdo::Error;
+use zbus::zvariant::Type;
+use zbus::{SignalContext, dbus_interface};
 
 pub const BUS_NAME: &str = "org.freedesktop.Notifications";
 pub const OBJ_PATH: &str = "/org/freedesktop/Notifications";
 
+/// Notification closure reason
+#[derive(Serialize_repr, Deserialize_repr, Type)]
+#[repr(u32)]
+pub enum Reason {
+    Expired = 1,
+    Dismissed = 2,
+    Closed = 3,
+    Undefined = 4,
+}
+
+impl Reason {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Self::Expired => "expired",
+            Self::Dismissed => "dismissed by user",
+            Self::Closed => "closed by CloseNotification",
+            Self::Undefined => "undefined reason",
+        }
+    }
+}
 
 /// DBus notification interface
 ///
@@ -27,6 +48,15 @@ impl Interface {
         }
     }
 
+    async fn delete_notification(&mut self, ctxt: SignalContext<'_>, id: u32, reason: Reason) {
+        if let None = self.notifications.remove(id).await {
+            warn!("Tried to close non-existant notification with id {}", id)
+        };
+
+        debug!("Notification {} {}", id, reason.to_str());
+
+        Self::notification_closed(&ctxt, id, reason).await.unwrap();
+    }
 }
 
 #[dbus_interface(name = "org.freedesktop.Notifications")]
@@ -74,27 +104,32 @@ impl Interface {
         self.id
     }
 
-    /// Delete a notification
+    /// Close a notification
     async fn close_notification(
         &mut self,
         #[zbus(signal_context)] ctxt: SignalContext<'_>,
         id: u32,
     ) {
-        if let None = self.notifications.remove(id).await {
-            warn!("Tried to close non-existant notification with id {}", id)
-        };
+        self.delete_notification(ctxt, id, Reason::Closed).await;
+    }
 
-        Self::notification_closed(&ctxt, id).await.unwrap();
+    /// Dismiss a notification
+    async fn dismiss_notification(
+        &mut self,
+        #[zbus(signal_context)] ctxt: SignalContext<'_>,
+        id: u32,
+    ) {
+        self.delete_notification(ctxt, id, Reason::Dismissed).await;
     }
 
     /// Get information about the notification server
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        ("notifyd", "", env!("CARGO_PKG_VERSION"), "1.2")
+        ("notifyd", "freedesktop.org", env!("CARGO_PKG_VERSION"), "1.2")
     }
 
     /// Get notification with given id
-    async fn get_notification(&self, id: u32) -> Result<Notification, zbus::fdo::Error> {
-        self.notifications.get(id).await.ok_or(zbus::fdo::Error::InvalidArgs("Notification with given ID does not exist".to_string()))
+    async fn get_notification(&self, id: u32) -> Result<Notification, Error> {
+        self.notifications.get(id).await.ok_or(Error::InvalidArgs("Notification with given ID does not exist".to_string()))
     }
 
     /// Get notifications
@@ -106,5 +141,5 @@ impl Interface {
     async fn new_notification(ctx: &SignalContext<'_>) -> zbus::Result<()> {}
 
     #[dbus_interface(signal)]
-    async fn notification_closed(ctx: &SignalContext<'_>, id: u32) -> zbus::Result<()> {}
+    async fn notification_closed(ctx: &SignalContext<'_>, id: u32, reason: Reason) -> zbus::Result<()> {}
 }

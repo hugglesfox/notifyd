@@ -40,7 +40,7 @@ pub use crate::notification::Notification;
 )]
 pub trait Notifyd {
     /// Close a notification with the given ID
-    fn close_notification(&self, id: u32) -> Result<()>;
+    fn dismiss_notification(&self, id: u32) -> Result<()>;
 
     /// Get all notifications as a hashmap where the key is the id of the notification
     fn get_notifications(&self) -> Result<HashMap<u32, Notification>>;
